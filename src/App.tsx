@@ -1,14 +1,14 @@
 import "@mantine/core/styles.css";
-import { MantineProvider } from "@mantine/core";
+import { Container, MantineProvider } from "@mantine/core";
 import { theme } from "./theme";
 import Form from "./Form";
 
 export default function App() {
   return (
     <MantineProvider theme={theme}>
-      <div>
+      <Container size="xs" mt="10%">
         <Form />
-      </div>
+      </Container>
     </MantineProvider>
   );
 }
