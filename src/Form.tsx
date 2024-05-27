@@ -1,7 +1,9 @@
 import { Schema } from "@effect/schema";
 import { Button, Chip, Fieldset, Group, Textarea } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { Array } from "effect";
+import { Array, Tuple } from "effect";
+import { useRef } from "react";
+import { createPortal } from "react-dom";
 
 const improvements = Schema.Literal(
   "communication",
@@ -55,28 +57,43 @@ function Form() {
   const form = useForm({
     mode: "controlled",
     initialValues: {
-      improvements: {
-        keys: Array.makeBy(improvements.literals.length, () => false),
-        values: Array.makeBy(improvements.literals.length, () => ""),
-      },
+      improvements: Array.makeBy(improvements.literals.length, () =>
+        Tuple.make(false, "")
+      ),
     },
   });
+
+  const ref1 = useRef(null);
+  const ref2 = useRef(null);
+
+  const chips = form.getValues().improvements.map((_, idx) => (
+    <Chip
+      key={form.key(`improvements.${idx}.0`)}
+      {...form.getInputProps(`improvements.${idx}.0`)}
+    >
+      {getLabel(improvements.literals[idx])}
+    </Chip>
+  ));
+  const textAreas = form
+    .getValues()
+    .improvements.map(
+      ([selected], idx) =>
+        selected && (
+          <Textarea
+            key={form.key(`improvements.${idx}.1`)}
+            {...form.getInputProps(`improvements.${idx}.1`)}
+            label={getLabel(improvements.literals[idx])}
+          />
+        )
+    );
 
   return (
     <form onSubmit={form.onSubmit((values) => console.log(values))}>
       <Fieldset
         variant="unstyled"
         styles={{ root: { display: "flex", gap: "8px", flexWrap: "wrap" } }}
-      >
-        {improvements.literals.map((key, idx) => (
-          <Chip
-            key={form.key(`improvements.keys.${idx}`)}
-            {...form.getInputProps(`improvements.keys.${idx}`)}
-          >
-            {getLabel(key)}
-          </Chip>
-        ))}
-      </Fieldset>
+        ref={ref1}
+      />
       <Fieldset
         variant="unstyled"
         styles={{
@@ -87,21 +104,10 @@ function Form() {
             marginTop: "24px",
           },
         }}
-      >
-        {form
-          .getValues()
-          .improvements.keys.map(
-            (selected, idx) =>
-              selected && (
-                <Textarea
-                  key={form.key(`improvements.values.${idx}`)}
-                  {...form.getInputProps(`improvements.values.${idx}`)}
-                  label={getLabel(improvements.literals[idx])}
-                />
-              )
-          )}
-      </Fieldset>
-
+        ref={ref2}
+      />
+      {ref1.current && createPortal(chips, ref1.current)}
+      {ref2.current && createPortal(textAreas, ref2.current)}
       <Group justify="flex-end" mt="md">
         <Button type="submit">Submit</Button>
       </Group>
