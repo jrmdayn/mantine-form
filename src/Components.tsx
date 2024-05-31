@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AST, Schema } from "@effect/schema";
 import { Function, pipe } from "effect";
-import React, { useCallback, useMemo } from "react";
+import React from "react";
 import * as mantine from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { createFormContext } from "@mantine/form";
 
 mantine.Chip;
 
@@ -23,6 +23,23 @@ export const Textarea = annotate(Schema.String, TextareaId);
 export const TextInputId = Symbol.for("@inato/component/textinput");
 export const TextInput = annotate(Schema.String, TextInputId);
 
+const [FormProvider, useFormContext, useForm] = createFormContext();
+
+const Register: React.FC<{
+  path: string;
+  Component: React.FC;
+  type?: "input" | "checkbox";
+}> = ({ Component, path, type, ...props }) => {
+  const form = useFormContext();
+  return (
+    <Component
+      {...props}
+      key={form.key(path)}
+      {...form.getInputProps(path, { type })}
+    />
+  );
+};
+
 const registry: Map<symbol, mantine.MantineComponent<any>> = new Map(
   //@ts-expect-error "expected"
   [
@@ -40,48 +57,34 @@ const lookup = (ast: AST.AST): React.FC | null => {
   }
   return null;
 };
-const useFormComponents = (ast: AST.AST) => {
-  const form = useForm({ mode: "uncontrolled" });
 
-  const register = useCallback(
-    (path: string[], type: "input" | "checkbox") =>
-      (Component: React.FC | null): React.FC | null => {
-        if (!Component) return null;
-        const key = path.join(".");
-        return ({ ...props }) => {
-          return (
-            <Component
-              {...props}
-              key={form.key(key)}
-              {...form.getInputProps(key, { type })}
-            />
-          );
-        };
-      },
-    [form]
-  );
+const register =
+  (path: string[], type?: "input" | "checkbox") =>
+  (Component: React.FC | null): React.FC | null => {
+    if (!Component) return null;
+    const path_ = path.join(".");
+    return ({ ...props }) => {
+      return (
+        <Register {...props} path={path_} Component={Component} type={type} />
+      );
+    };
+  };
 
-  const make = useCallback(
-    (ast: AST.AST, path: string[] = []) => {
-      switch (ast._tag) {
-        case "TypeLiteral": {
-          const res: any = {};
-          for (const prop of ast.propertySignatures) {
-            res[prop.name] = make(prop.type, path.concat(prop.name as string));
-          }
-          return res;
-        }
-        default: {
-          const type = ast._tag === "BooleanKeyword" ? "checkbox" : "input";
-          const Component = pipe(lookup(ast), register(path, type));
-          return Component;
-        }
+const make = (ast: AST.AST, path: string[] = []) => {
+  switch (ast._tag) {
+    case "TypeLiteral": {
+      const res: any = {};
+      for (const prop of ast.propertySignatures) {
+        res[prop.name] = make(prop.type, path.concat(prop.name as string));
       }
-    },
-    [register]
-  );
-
-  return useMemo(() => ({ Components: make(ast), form }), [ast, form, make]);
+      return res;
+    }
+    default: {
+      const type = ast._tag === "BooleanKeyword" ? "checkbox" : "input";
+      const Component = pipe(lookup(ast), register(path, type));
+      return Component;
+    }
+  }
 };
 
 const schema = Schema.Struct({
@@ -91,32 +94,34 @@ const schema = Schema.Struct({
   d: TextInput,
 });
 
-const Foo: React.FC = () => {
-  const { Components, form } = useFormComponents(schema.ast);
+const Components = make(schema.ast);
 
-  // console.log(form.getValues());
+const Foo: React.FC = () => {
+  const form = useForm({ mode: "uncontrolled" });
   return (
-    <form
-      onSubmit={form.onSubmit((values) => {
-        console.log(values);
-      })}
-    >
-      <div className="flex flex-col gap-s">
-        <Components.a>chip</Components.a>
-        <Components.b label="checkbox" />
-        <Components.c
-          label="Textarea label"
-          description="Textarea description"
-          placeholder="Textarea placeholder"
-        />
-        <Components.d
-          label="TextInput label"
-          description="TextInput description"
-          placeholder="TextInput placeholder"
-        />
-        <mantine.Button type="submit">Submit</mantine.Button>
-      </div>
-    </form>
+    <FormProvider form={form}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          console.log(values);
+        })}
+      >
+        <div className="flex flex-col gap-s">
+          <Components.a>chip</Components.a>
+          <Components.b label="checkbox" />
+          <Components.c
+            label="Textarea label"
+            description="Textarea description"
+            placeholder="Textarea placeholder"
+          />
+          <Components.d
+            label="TextInput label"
+            description="TextInput description"
+            placeholder="TextInput placeholder"
+          />
+          <mantine.Button type="submit">Submit</mantine.Button>
+        </div>
+      </form>
+    </FormProvider>
   );
 };
 
