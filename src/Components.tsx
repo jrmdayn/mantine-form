@@ -63,8 +63,6 @@ const useFormComponents = (ast: AST.AST) => {
 
   const make = useCallback(
     (ast: AST.AST, path: string[] = []) => {
-      const type = ast._tag === "BooleanKeyword" ? "checkbox" : "input";
-      const Component = pipe(lookup(ast), register(path, type));
       switch (ast._tag) {
         case "TypeLiteral": {
           const res: any = {};
@@ -73,8 +71,11 @@ const useFormComponents = (ast: AST.AST) => {
           }
           return res;
         }
-        default:
+        default: {
+          const type = ast._tag === "BooleanKeyword" ? "checkbox" : "input";
+          const Component = pipe(lookup(ast), register(path, type));
           return Component;
+        }
       }
     },
     [register]
