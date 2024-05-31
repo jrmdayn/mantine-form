@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AST, Schema } from "@effect/schema";
 import { Function, pipe } from "effect";
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import * as mantine from "@mantine/core";
 import { useForm } from "@mantine/form";
 
@@ -43,38 +43,44 @@ const lookup = (ast: AST.AST): React.FC | null => {
 const useFormComponents = (ast: AST.AST) => {
   const form = useForm({ mode: "uncontrolled" });
 
-  const register =
-    (path: string[]) =>
-    (Component: React.FC | null): React.FC | null => {
-      if (!Component) return null;
-      const key = path.join(".");
-      return ({ ...props }) => {
-        return (
-          <Component
-            {...props}
-            key={form.key(key)}
-            {...form.getInputProps(key)}
-          />
-        );
-      };
-    };
+  const register = useCallback(
+    (path: string[], type: "input" | "checkbox") =>
+      (Component: React.FC | null): React.FC | null => {
+        if (!Component) return null;
+        const key = path.join(".");
+        return ({ ...props }) => {
+          return (
+            <Component
+              {...props}
+              key={form.key(key)}
+              {...form.getInputProps(key, { type })}
+            />
+          );
+        };
+      },
+    [form]
+  );
 
-  const make = (ast: AST.AST, path: string[] = []) => {
-    const Component = pipe(lookup(ast), register(path));
-    switch (ast._tag) {
-      case "TypeLiteral": {
-        const res: any = {};
-        for (const prop of ast.propertySignatures) {
-          res[prop.name] = make(prop.type, path.concat(prop.name as string));
+  const make = useCallback(
+    (ast: AST.AST, path: string[] = []) => {
+      const type = ast._tag === "BooleanKeyword" ? "checkbox" : "input";
+      const Component = pipe(lookup(ast), register(path, type));
+      switch (ast._tag) {
+        case "TypeLiteral": {
+          const res: any = {};
+          for (const prop of ast.propertySignatures) {
+            res[prop.name] = make(prop.type, path.concat(prop.name as string));
+          }
+          return res;
         }
-        return res;
+        default:
+          return Component;
       }
-      default:
-        return Component;
-    }
-  };
+    },
+    [register]
+  );
 
-  return { Components: make(ast), form };
+  return useMemo(() => ({ Components: make(ast), form }), [ast, form, make]);
 };
 
 const schema = Schema.Struct({
@@ -86,9 +92,15 @@ const schema = Schema.Struct({
 
 const Foo: React.FC = () => {
   const { Components, form } = useFormComponents(schema.ast);
+
+  // console.log(form.getValues());
   return (
-    <form onSubmit={form.onSubmit((values) => console.log(values))}>
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <form
+      onSubmit={form.onSubmit((values) => {
+        console.log(values);
+      })}
+    >
+      <div className="flex flex-col gap-s">
         <Components.a>chip</Components.a>
         <Components.b label="checkbox" />
         <Components.c

@@ -3,7 +3,7 @@ import { Button, Chip, Fieldset, Group, Textarea } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Array, Tuple } from "effect";
 import { useRef } from "react";
-import { createPortal } from "react-dom";
+// import { createPortal } from "react-dom";
 
 const improvements = Schema.Literal(
   "communication",
@@ -55,7 +55,7 @@ const getLabel = (key: typeof improvements.Type): string => mapping[key].label;
 
 function Form() {
   const form = useForm({
-    mode: "controlled",
+    mode: "uncontrolled",
     initialValues: {
       improvements: Array.makeBy(improvements.literals.length, () =>
         Tuple.make(false, "")
@@ -93,7 +93,9 @@ function Form() {
         variant="unstyled"
         styles={{ root: { display: "flex", gap: "8px", flexWrap: "wrap" } }}
         ref={ref1}
-      />
+      >
+        {chips}
+      </Fieldset>
       <Fieldset
         variant="unstyled"
         styles={{
@@ -105,9 +107,11 @@ function Form() {
           },
         }}
         ref={ref2}
-      />
-      {ref1.current && createPortal(chips, ref1.current)}
-      {ref2.current && createPortal(textAreas, ref2.current)}
+      >
+        {textAreas}
+      </Fieldset>
+      {/* {ref1.current && createPortal(chips, ref1.current)}
+      {ref2.current && createPortal(textAreas, ref2.current)} */}
       <Group justify="flex-end" mt="md">
         <Button type="submit">Submit</Button>
       </Group>

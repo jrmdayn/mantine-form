@@ -8,7 +8,8 @@ export default function App() {
   return (
     <MantineProvider theme={theme}>
       <Container size="xs" mt="10%">
-        <Form />
+        <Foo />
+        {/* <Form /> */}
       </Container>
     </MantineProvider>
   );
